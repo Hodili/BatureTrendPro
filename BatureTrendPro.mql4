@@ -1,0 +1,84 @@
+//+------------------------------------------------------------------+
+//| BatureTrendPro - Trend Identification Indicator for MT4         |
+//| Based on EMA, ADX, RSI, MACD                                    |
+//+------------------------------------------------------------------+
+#property indicator_chart_window
+#property indicator_buffers 2
+#property indicator_color1 Lime
+#property indicator_color2 Red
+#property indicator_type1 DRAW_ARROW
+#property indicator_type2 DRAW_ARROW
+
+// Indicator Buffers
+double UpTrendBuffer[];
+double DownTrendBuffer[];
+
+// Indicator Settings
+int ShortEMA = 50;
+int LongEMA = 200;
+double ADXThreshold = 25.0;
+double RSIThreshold = 50.0;
+
+// Handles Initialization
+int OnInit()
+{
+   IndicatorShortName("BatureTrendPro");  // Set the displayed indicator name
+   IndicatorBuffers(2);
+   SetIndexBuffer(0, UpTrendBuffer);
+   SetIndexBuffer(1, DownTrendBuffer);
+   SetIndexStyle(0, DRAW_ARROW);
+   SetIndexStyle(1, DRAW_ARROW);
+   SetIndexArrow(0, 233);
+   SetIndexArrow(1, 234);
+   
+   ArraySetAsSeries(UpTrendBuffer, true);
+   ArraySetAsSeries(DownTrendBuffer, true);
+   
+   return(INIT_SUCCEEDED);
+}
+
+// Trend Calculation
+int OnCalculate(const int rates_total,
+                const int prev_calculated,
+                const datetime &time[],
+                const double &open[],
+                const double &high[],
+                const double &low[],
+                const double &close[],
+                const long &tick_volume[],
+                const long &volume[],
+                const int &spread[])
+{
+   if (rates_total < LongEMA) return 0;
+   
+   int start = prev_calculated > 0 ? prev_calculated - 1 : 0;
+   
+   for(int i = start; i < rates_total - 1; i++)
+   {
+      double ema50 = iMA(NULL, 0, ShortEMA, 0, MODE_EMA, PRICE_CLOSE, i);
+      double ema200 = iMA(NULL, 0, LongEMA, 0, MODE_EMA, PRICE_CLOSE, i);
+      double adx = iADX(NULL, 0, 14, PRICE_CLOSE, MODE_MAIN, i);
+      double rsi = iRSI(NULL, 0, 14, PRICE_CLOSE, i);
+      double macd = iMACD(NULL, 0, 12, 26, 9, PRICE_CLOSE, MODE_MAIN, i);
+      double signal = iMACD(NULL, 0, 12, 26, 9, PRICE_CLOSE, MODE_SIGNAL, i);
+      
+      // Uptrend conditions
+      if (ema50 > ema200 && adx > ADXThreshold && rsi > RSIThreshold && macd > signal)
+      {
+         UpTrendBuffer[i] = low[i] - 10 * Point;
+         DownTrendBuffer[i] = 0;
+      }
+      // Downtrend conditions
+      else if (ema50 < ema200 && adx > ADXThreshold && rsi < RSIThreshold && macd < signal)
+      {
+         DownTrendBuffer[i] = high[i] + 10 * Point;
+         UpTrendBuffer[i] = 0;
+      }
+      else
+      {
+         UpTrendBuffer[i] = 0;
+         DownTrendBuffer[i] = 0;
+      }
+   }
+   return(rates_total);
+}
