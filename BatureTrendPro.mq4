@@ -19,6 +19,9 @@ int LongEMA = 200;
 double ADXThreshold = 25.0;
 double RSIThreshold = 50.0;
 
+// Trend State Tracking
+int PreviousTrendState = 0; // 0 - Uncertain, 1 - Uptrend, -1 - Downtrend
+
 // Handles Initialization
 int OnInit()
 {
@@ -55,6 +58,7 @@ int OnCalculate(const int rates_total,
    
    for(int i = start; i < rates_total - 1; i++)
    {
+      // Calculate technical indicators once per bar
       double ema50 = iMA(NULL, 0, ShortEMA, 0, MODE_EMA, PRICE_CLOSE, i);
       double ema200 = iMA(NULL, 0, LongEMA, 0, MODE_EMA, PRICE_CLOSE, i);
       double adx = iADX(NULL, 0, 14, PRICE_CLOSE, MODE_MAIN, i);
@@ -62,20 +66,46 @@ int OnCalculate(const int rates_total,
       double macd = iMACD(NULL, 0, 12, 26, 9, PRICE_CLOSE, MODE_MAIN, i);
       double signal = iMACD(NULL, 0, 12, 26, 9, PRICE_CLOSE, MODE_SIGNAL, i);
       
-      // Uptrend conditions
-      if (ema50 > ema200 && adx > ADXThreshold && rsi > RSIThreshold && macd > signal)
-      {
-         UpTrendBuffer[i] = low[i] - 10 * Point;
-         DownTrendBuffer[i] = 0;
+      // Determine the current trend
+      int currentTrendState = 0; // Uncertain by default
+
+      if (ema50 > ema200 && adx > ADXThreshold && rsi > RSIThreshold && macd > signal) {
+         currentTrendState = 1; // Uptrend
+      } else if (ema50 < ema200 && adx > ADXThreshold && rsi < RSIThreshold && macd < signal) {
+         currentTrendState = -1; // Downtrend
       }
-      // Downtrend conditions
-      else if (ema50 < ema200 && adx > ADXThreshold && rsi < RSIThreshold && macd < signal)
+
+      // Check for trend change and trigger signals accordingly
+      if (currentTrendState != PreviousTrendState)
       {
-         DownTrendBuffer[i] = high[i] + 10 * Point;
-         UpTrendBuffer[i] = 0;
+         // Trend has changed, plot the corresponding signal
+         if (currentTrendState == 1) {
+            // Uptrend signal
+            UpTrendBuffer[i] = low[i] - 10 * Point;
+            DownTrendBuffer[i] = 0;
+            // Send mobile notification for uptrend
+            Alert("Trend changed to UP at ", TimeToString(time[i]));
+            SendNotification("Trend changed to UP");
+         }
+         else if (currentTrendState == -1) {
+            // Downtrend signal
+            DownTrendBuffer[i] = high[i] + 10 * Point;
+            UpTrendBuffer[i] = 0;
+            // Send mobile notification for downtrend
+            Alert("Trend changed to DOWN at ", TimeToString(time[i]));
+            SendNotification("Trend changed to DOWN");
+         }
+         else {
+            // No trend (uncertain)
+            UpTrendBuffer[i] = 0;
+            DownTrendBuffer[i] = 0;
+         }
+
+         // Update previous trend state
+         PreviousTrendState = currentTrendState;
       }
-      else
-      {
+      else {
+         // No trend change, clear the buffers
          UpTrendBuffer[i] = 0;
          DownTrendBuffer[i] = 0;
       }
