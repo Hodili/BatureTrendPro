@@ -55,6 +55,7 @@ int OnCalculate(const int rates_total,
    if (rates_total < LongEMA) return 0;
    
    int start = prev_calculated > 0 ? prev_calculated - 1 : 0;
+   string msg; // Declare message variable once
    
    for(int i = start; i < rates_total - 1; i++)
    {
@@ -78,34 +79,28 @@ int OnCalculate(const int rates_total,
       // Check for trend change and trigger signals accordingly
       if (currentTrendState != PreviousTrendState)
       {
-         // Trend has changed, plot the corresponding signal
          if (currentTrendState == 1) {
-            // Uptrend signal
             UpTrendBuffer[i] = low[i] - 10 * Point;
             DownTrendBuffer[i] = 0;
-            // Send mobile notification for uptrend
-            Alert("Trend changed to UP at ", TimeToString(time[i]));
-            SendNotification("Trend changed to UP");
+            msg = "Trend changed to UP at " + TimeToString(time[i]);
+            Alert(msg);
+            SendNotification(msg);
          }
          else if (currentTrendState == -1) {
-            // Downtrend signal
             DownTrendBuffer[i] = high[i] + 10 * Point;
             UpTrendBuffer[i] = 0;
-            // Send mobile notification for downtrend
-            Alert("Trend changed to DOWN at ", TimeToString(time[i]));
-            SendNotification("Trend changed to DOWN");
+            msg = "Trend changed to DOWN at " + TimeToString(time[i]);
+            Alert(msg);
+            SendNotification(msg);
          }
          else {
-            // No trend (uncertain)
             UpTrendBuffer[i] = 0;
             DownTrendBuffer[i] = 0;
          }
-
-         // Update previous trend state
-         PreviousTrendState = currentTrendState;
+         
+         PreviousTrendState = currentTrendState; // Update previous trend state
       }
       else {
-         // No trend change, clear the buffers
          UpTrendBuffer[i] = 0;
          DownTrendBuffer[i] = 0;
       }
